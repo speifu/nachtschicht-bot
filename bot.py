@@ -3,8 +3,9 @@ import discord
 import requests
 from flask import Flask
 from threading import Thread
+import asyncio
 
-# --- MINI WEB-SERVER (Hält den Bot in der Cloud 24/7 wach) ---
+# --- MINI WEB-SERVER (Keep-Alive für Render) ---
 app = Flask('')
 
 @app.route('/')
@@ -12,7 +13,7 @@ def home():
     return "Nachtschicht Bot ist online und aktiv!"
 
 def run():
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
@@ -41,42 +42,57 @@ def determine_guild_role(member):
             return ROLE_MAPPING[role_key]
     return "Fremder"
 
-def sync_member_to_sheets(member, status="Aktiv"):
-    role = determine_guild_role(member)
-    payload = {
-        "discord_id": str(member.id),
-        "display_name": member.display_name,
-        "username": member.name,
-        "gild_rolle": role,
-        "status": status
-    }
+async def perform_full_sync():
+    """Sammelt alle Mitglieder und sendet sie gebündelt an Google Sheets."""
+    print("Starte Full Sync aller Server-Mitglieder...")
+    all_members_data = []
+
+    for guild in client.guilds:
+        # Mitglieder-Cache sicher laden
+        if not guild.chunked:
+            await guild.chunk(cache=True)
+            
+        for member in guild.members:
+            if not member.bot:
+                role = determine_guild_role(member)
+                all_members_data.append({
+                    "discord_id": str(member.id),
+                    "display_name": member.display_name,
+                    "username": member.name,
+                    "gild_rolle": role,
+                    "status": "Aktiv"
+                })
+
     try:
-        response = requests.post(WEB_APP_URL, json=payload)
-        print(f"Synced {member.display_name} ({role}) -> {response.status_code}")
+        # Blockierenden Request in einen separaten Thread auslagern, damit Discord nicht blockiert
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(
+            None, lambda: requests.post(WEB_APP_URL, json=all_members_data)
+        )
+        print(f"Full Sync erfolgreich abgeschlossen ({len(all_members_data)} Mitglieder) -> Response: {response.status_code}")
     except Exception as e:
-        print(f"Fehler beim Sync: {e}")
+        print(f"Fehler beim Full Sync zu Google Sheets: {e}")
 
 @client.event
 async def on_ready():
     print(f"Bot angemeldet als {client.user}")
-    for guild in client.guilds:
-        async for member in guild.fetch_members(limit=None):
-            if not member.bot:
-                sync_member_to_sheets(member, status="Aktiv")
-    print("Initialer Sync abgeschlossen!")
+    await perform_full_sync()
 
 @client.event
 async def on_member_join(member):
-    sync_member_to_sheets(member, status="Aktiv")
+    print(f"User beigetreten: {member.display_name} -> Trigger Full Sync")
+    await perform_full_sync()
 
 @client.event
 async def on_member_remove(member):
-    sync_member_to_sheets(member, status="Inaktiv")
+    print(f"User hat verlassen: {member.display_name} -> Trigger Full Sync")
+    await perform_full_sync()
 
 @client.event
 async def on_member_update(before, after):
     if before.roles != after.roles:
-        sync_member_to_sheets(after, status="Aktiv")
+        print(f"Rollenänderung bei {after.display_name} -> Trigger Full Sync")
+        await perform_full_sync()
 
 if __name__ == "__main__":
     keep_alive()

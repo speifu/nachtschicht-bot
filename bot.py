@@ -43,13 +43,12 @@ def determine_guild_role(member):
     return "Fremder"
 
 async def perform_full_sync():
-    """Sammelt alle Mitglieder und sendet sie gebündelt an Google Sheets."""
-    print("Starte Full Sync aller Server-Mitglieder...")
+    print(">>> Starte Full Sync aller Server-Mitglieder...", flush=True)
     all_members_data = []
 
     for guild in client.guilds:
-        # Mitglieder-Cache sicher laden
         if not guild.chunked:
+            print(f">>> Lade Mitglieder-Cache für Gilde: {guild.name}", flush=True)
             await guild.chunk(cache=True)
             
         for member in guild.members:
@@ -63,35 +62,38 @@ async def perform_full_sync():
                     "status": "Aktiv"
                 })
 
+    print(f">>> {len(all_members_data)} Mitglieder gesammelt. Sende an Google Sheets...", flush=True)
+
     try:
-        # Blockierenden Request in einen separaten Thread auslagern, damit Discord nicht blockiert
         loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(
-            None, lambda: requests.post(WEB_APP_URL, json=all_members_data)
+            None, lambda: requests.post(WEB_APP_URL, json=all_members_data, timeout=15)
         )
-        print(f"Full Sync erfolgreich abgeschlossen ({len(all_members_data)} Mitglieder) -> Response: {response.status_code}")
+        print(f">>> Full Sync erfolgreich! Server-Response: {response.status_code}", flush=True)
+    except requests.exceptions.Timeout:
+        print(">>> FEHLER: Google Apps Script Timeout nach 15 Sekunden.", flush=True)
     except Exception as e:
-        print(f"Fehler beim Full Sync zu Google Sheets: {e}")
+        print(f">>> FEHLER beim Full Sync zu Google Sheets: {e}", flush=True)
 
 @client.event
 async def on_ready():
-    print(f"Bot angemeldet als {client.user}")
+    print(f">>> Bot erfolgreich angemeldet als {client.user}", flush=True)
     await perform_full_sync()
 
 @client.event
 async def on_member_join(member):
-    print(f"User beigetreten: {member.display_name} -> Trigger Full Sync")
+    print(f">>> User beigetreten: {member.display_name} -> Trigger Full Sync", flush=True)
     await perform_full_sync()
 
 @client.event
 async def on_member_remove(member):
-    print(f"User hat verlassen: {member.display_name} -> Trigger Full Sync")
+    print(f">>> User hat verlassen: {member.display_name} -> Trigger Full Sync", flush=True)
     await perform_full_sync()
 
 @client.event
 async def on_member_update(before, after):
     if before.roles != after.roles:
-        print(f"Rollenänderung bei {after.display_name} -> Trigger Full Sync")
+        print(f">>> Rollenänderung bei {after.display_name} -> Trigger Full Sync", flush=True)
         await perform_full_sync()
 
 if __name__ == "__main__":

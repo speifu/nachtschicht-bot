@@ -1,6 +1,8 @@
 import os
 import discord
 import requests
+import aiohttp
+
 from flask import Flask
 from threading import Thread
 import asyncio
@@ -189,3 +191,43 @@ async def on_member_update(before, after):
 if __name__ == "__main__":
     keep_alive()
     client.run(BOT_TOKEN)
+
+from discord.ext import commands
+
+# Deine Google Apps Script Web-App URL hier einfügen:
+APPS_SCRIPT_URL = "DEINE_APPS_SCRIPT_WEBAPP_URL_HIER"
+
+@bot.tree.command(name="skz", description="Zeigt deinen aktuellen SKZ Punktestand und deinen Verlauf an.")
+async def skz(interaction: discord.Interaction):
+    # Ephemeral = True sorgt dafür, dass NUR der Nutzer die Antwort privat sieht
+    await interaction.response.defer(ephemeral=True)
+    
+    user_id = str(interaction.user.id)
+    url = f"{APPS_SCRIPT_URL}?discord_id={user_id}"
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                if data.get("status") == "success":
+                    punkte = data.get("punkte", 0)
+                    history = data.get("history", [])
+                    
+                    embed = discord.Embed(
+                        title=f"🏆 Deine SKZ Punkte: {punkte}",
+                        color=discord.Color.blue()
+                    )
+                    
+                    if history:
+                        history_text = ""
+                        for item in history:
+                            history_text += f"• **{item['datum']}**: {item['punkte']} SKZ ({item['grund']})\n"
+                        embed.add_field(name="Letzte Einträge", value=history_text, inline=False)
+                    else:
+                        embed.add_field(name="Letzte Einträge", value="Noch keine Einträge vorhanden.", inline=False)
+                        
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                else:
+                    await interaction.followup.send("Fehler beim Abrufen deiner Daten.", ephemeral=True)
+            else:
+                await interaction.followup.send("Verbindung zum Tabellensystem fehlgeschlagen.", ephemeral=True)

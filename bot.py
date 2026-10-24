@@ -93,6 +93,8 @@ async def perform_full_sync():
             None, lambda: requests.post(WEB_APP_URL, json=all_members_data, timeout=15)
         )
         print(f">>> Full Sync erfolgreich! Server-Response: {response.status_code}", flush=True)
+    except requests.exceptions.Timeout:
+        print(">>> FEHLER: Google Apps Script Timeout nach 15 Sekunden.", flush=True)
     except Exception as e:
         print(f">>> FEHLER beim Full Sync zu Google Sheets: {e}", flush=True)
 

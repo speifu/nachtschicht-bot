@@ -195,11 +195,14 @@ if __name__ == "__main__":
 from discord.ext import commands
 
 # Deine Google Apps Script Web-App URL hier einfügen:
+import aiohttp
+import discord
+from discord.ext import commands
+
 APPS_SCRIPT_URL = "DEINE_APPS_SCRIPT_WEBAPP_URL_HIER"
 
-@bot.tree.command(name="skz", description="Zeigt deinen aktuellen SKZ Punktestand und deinen Verlauf an.")
+@bot.tree.command(name="skz", description="Zeigt deinen aktuellen SKZ Punktestand und deinen gesamten Verlauf an.")
 async def skz(interaction: discord.Interaction):
-    # Ephemeral = True sorgt dafür, dass NUR der Nutzer die Antwort privat sieht
     await interaction.response.defer(ephemeral=True)
     
     user_id = str(interaction.user.id)
@@ -215,19 +218,35 @@ async def skz(interaction: discord.Interaction):
                     
                     embed = discord.Embed(
                         title=f"🏆 Deine SKZ Punkte: {punkte}",
+                        description="Hier ist deine persönliche Übersicht und Historie:",
                         color=discord.Color.blue()
                     )
                     
                     if history:
                         history_text = ""
                         for item in history:
-                            history_text += f"• **{item['datum']}**: {item['punkte']} SKZ ({item['grund']})\n"
-                        embed.add_field(name="Letzte Einträge", value=history_text, inline=False)
+                            vorzeichen = "+" if item['punkte'] > 0 else ""
+                            line = f"• **{item['datum']}**: `{vorzeichen}{item['punkte']} SKZ` – {item['grund']} *(von {item['von']})*\n"
+                            
+                            # Schutz vor Discord Nachrichtengrößen-Limit (max 1024 Zeichen pro Feld)
+                            if len(history_text) + len(line) > 1000:
+                                history_text += "• *... und weitere ältere Einträge.*"
+                                break
+                            history_text += line
+                            
+                        embed.add_field(name="📜 Gesamter Verlauf im Log", value=history_text, inline=False)
                     else:
-                        embed.add_field(name="Letzte Einträge", value="Noch keine Einträge vorhanden.", inline=False)
+                        embed.add_field(name="📜 Gesamter Verlauf im Log", value="Noch keine Log-Einträge vorhanden.", inline=False)
                         
+                    embed.set_footer(text="Nachtschicht Raid-System • Nur für dich sichtbar")
                     await interaction.followup.send(embed=embed, ephemeral=True)
                 else:
-                    await interaction.followup.send("Fehler beim Abrufen deiner Daten.", ephemeral=True)
+                    await interaction.followup.send("Fehler beim Abrufen deiner Daten aus dem Sheet.", ephemeral=True)
             else:
                 await interaction.followup.send("Verbindung zum Tabellensystem fehlgeschlagen.", ephemeral=True)
+
+@bot.event
+async def on_ready():
+    # Synchronisiert die Slash-Commands global mit Discord
+    await bot.tree.sync()
+    print(f"Bot ist eingeloggt als {bot.user} und Slash-Commands wurden synchronisiert!")

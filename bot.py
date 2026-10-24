@@ -128,7 +128,6 @@ async def on_member_remove(member):
     leave_date = datetime.now().strftime('%Y-%m-%d')
     status = "Leave"
     
-    # Prüfen, ob es ein Kick war über die Audit-Logs
     try:
         async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.kick):
             if entry.target and entry.target.id == member.id:
@@ -156,14 +155,16 @@ async def on_member_ban(guild, user):
     leave_date = datetime.now().strftime('%Y-%m-%d')
     data = {
         "discord_id": str(user.id),
-        "display_name": user.display_name if hasattr(user, 'display_name') else user.name,
-        "username": user.name,
+        "display_name": getattr(user, 'display_name', user.name),
+        username := user.name,
         "gild_rolle": "Fremder",
         "status": "Ban",
         "raid_check": "Nein",
         "join_date": "",
         "leave_date": leave_date
     }
+    # Korrektur für username im Dict:
+    data["username"] = user.name
     await send_event_update(data)
 
 @client.event

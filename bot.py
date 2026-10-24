@@ -47,11 +47,8 @@ async def perform_full_sync():
     all_members_data = []
 
     for guild in client.guilds:
-        if not guild.chunked:
-            print(f">>> Lade Mitglieder-Cache für Gilde: {guild.name}", flush=True)
-            await guild.chunk(cache=True)
-            
-        for member in guild.members:
+        # fetch_members lädt garantiert die komplette Server-Mitgliederliste lückenlos herunter
+        async for member in guild.fetch_members(limit=None):
             if not member.bot:
                 role = determine_guild_role(member)
                 all_members_data.append({

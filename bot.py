@@ -36,8 +36,7 @@ ROLE_HIERARCHY = [
 ]
 
 intents = discord.Intents.default()
-intents.members = True
-intents.audit_log = True  # Wichtig, um Kicks zu erkennen!
+intents.members = True  # Notwendig, um Mitglieder-Listen und Joins/Leaves zu erfassen
 client = discord.Client(intents=intents)
 
 def determine_guild_role(member):
@@ -137,7 +136,7 @@ async def on_member_remove(member):
                     status = "Kick"
                     break
     except Exception as e:
-        print(f"Audit-Log Prüfung fehlgeschlagen: {e}")
+        print(f"Audit-Log Prüfung fehlgeschlagen (Vermutlich fehlende Bot-Berechtigungen): {e}")
 
     data = {
         "discord_id": str(member.id),

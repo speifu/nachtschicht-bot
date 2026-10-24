@@ -156,15 +156,13 @@ async def on_member_ban(guild, user):
     data = {
         "discord_id": str(user.id),
         "display_name": getattr(user, 'display_name', user.name),
-        username := user.name,
+        "username": user.name,
         "gild_rolle": "Fremder",
         "status": "Ban",
         "raid_check": "Nein",
         "join_date": "",
         "leave_date": leave_date
     }
-    # Korrektur für username im Dict:
-    data["username"] = user.name
     await send_event_update(data)
 
 @client.event

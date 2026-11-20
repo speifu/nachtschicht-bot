@@ -31,8 +31,10 @@ WEB_APP_URL = os.environ.get("WEB_APP_URL")
 ROLE_HIERARCHY = [
     "Schichtführer",
     "Vorarbeiter",
+    "Stellvertreter",
     "Einsatzleiter",
-    "Stammbelegschaft",
+    "Altgeselle",
+    "Stammkraft",
     "Aushilfe",
     "Neuling"
 ]

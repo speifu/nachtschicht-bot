@@ -36,6 +36,7 @@ ROLE_HIERARCHY = [
     "Altgeselle",
     "Stammkraft",
     "Aushilfe",
+    "Ehrenmitglied",
     "Neuling"
 ]
 
